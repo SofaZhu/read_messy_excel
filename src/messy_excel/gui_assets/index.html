@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Messy Excel · 整理工作台</title>
+  <link rel="stylesheet" href="/app.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="top-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Messy Excel</div>
+      <span class="local"><span></span> 本地处理</span>
+    </div>
+  </header>
+  <main class="workspace">
+    <div class="page-heading">
+      <div><h1>Excel 整理工作台</h1><p>预览清理后的明细，核对表头识别、合并填充与尾行处理。</p></div>
+      <button id="demo" class="button secondary" type="button">载入示例</button>
+    </div>
+    <div class="layout">
+      <aside class="card settings" aria-label="工作簿与读取参数">
+        <h2>工作簿</h2>
+        <label for="file" class="file-button" id="file-target" tabindex="0" role="button">
+          <span class="upload-icon" aria-hidden="true">↑</span>
+          <span class="file-copy"><strong>选择 Excel 文件</strong><span id="filename">也可以将 .xlsx 拖到这里</span></span>
+        </label>
+        <input id="file" class="visually-hidden" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" tabindex="-1">
+        <label class="field" for="sheet">工作表<select id="sheet" disabled><option>选择文件后显示</option></select></label>
+        <form id="options">
+          <h2>读取参数</h2>
+          <div class="field-row">
+            <label class="field" for="header-row">表头起始行<input id="header-row" type="number" placeholder="自动" min="1" step="1"></label>
+            <label class="field" for="header-depth">表头层数<input id="header-depth" type="number" placeholder="自动" min="1" step="1" disabled></label>
+          </div>
+          <label class="field" for="drop-tail">删除尾行数<input id="drop-tail" type="number" placeholder="自动" min="0" step="1" aria-describedby="tail-hint"></label>
+          <p class="hint" id="tail-hint">留空自动识别合计，填 0 保留非空尾行。</p>
+          <button class="button primary" id="preview-button" type="submit" disabled>重新预览 <span aria-hidden="true">→</span></button>
+        </form>
+      </aside>
+      <section class="results" aria-label="解析结果" aria-busy="false" id="results">
+        <div class="notice" id="notice" role="status" hidden></div>
+        <div class="metrics" aria-label="结果摘要">
+          <div class="card metric"><span>明细行</span><strong id="row-count">—</strong></div>
+          <div class="card metric"><span>数据列</span><strong id="column-count">—</strong></div>
+          <div class="card metric"><span>表头行</span><strong id="header-count">—</strong></div>
+          <div class="card metric"><span>已删除尾行</span><strong id="tail-count">—</strong></div>
+        </div>
+        <section class="card preview" aria-labelledby="preview-title">
+          <div class="section-heading"><h2 id="preview-title">数据预览</h2><span id="sheet-tag" class="tag" hidden></span></div>
+          <div id="table-wrap" class="table-wrap" tabindex="0" aria-label="清理后的明细表" hidden><table><thead id="table-head"></thead><tbody id="table-body"></tbody></table></div>
+          <div id="empty" class="empty">载入示例或选择一个 .xlsx 文件开始。</div>
+          <div id="preview-note" class="preview-note" hidden></div>
+        </section>
+        <section class="card report" aria-labelledby="report-title">
+          <div class="section-heading"><h2 id="report-title">解析报告</h2><span id="report-mode" class="tag muted" hidden></span></div>
+          <div id="report-body" class="report-body"><p class="quiet">解析后会显示原始 Excel 行号与合并区域。</p></div>
+        </section>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

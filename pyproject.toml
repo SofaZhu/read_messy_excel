@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "read-messy-excel"
+version = "0.1.0.dev0"
+description = "Flatten business Excel reports into pandas DataFrames with a parsing report."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["openpyxl>=3.1", "pandas>=2.2"]
+
+[project.scripts]
+messy-excel = "messy_excel.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+messy_excel = ["gui_assets/*.html", "gui_assets/*.css", "gui_assets/*.js"]
