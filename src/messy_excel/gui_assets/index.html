@@ -16,7 +16,7 @@
   </header>
   <main class="workspace">
     <div class="page-heading">
-      <div><h1>Excel 整理工作台</h1><p>预览清理后的明细，核对表头识别、合并填充与尾行处理。</p></div>
+      <div><h1>Excel 整理工作台</h1><p>对照原表和清理结果，确认后导出完整工作表。</p></div>
       <button id="demo" class="button secondary" type="button">载入示例</button>
     </div>
     <div class="layout">
@@ -34,24 +34,47 @@
             <label class="field" for="header-row">表头起始行<input id="header-row" type="number" placeholder="自动" min="1" step="1"></label>
             <label class="field" for="header-depth">表头层数<input id="header-depth" type="number" placeholder="自动" min="1" step="1" disabled></label>
           </div>
-          <label class="field" for="drop-tail">删除尾行数<input id="drop-tail" type="number" placeholder="自动" min="0" step="1" aria-describedby="tail-hint"></label>
-          <p class="hint" id="tail-hint">留空自动识别合计，填 0 保留非空尾行。</p>
+          <label class="field" for="drop-tail">删除尾行数<input id="drop-tail" type="number" placeholder="待确认" min="0" step="1" aria-describedby="tail-hint"></label>
+          <p class="hint" id="tail-hint">留空只提示可能的汇总行。填 0 可保留尾行并关闭提示。</p>
           <button class="button primary" id="preview-button" type="submit" disabled>重新预览 <span aria-hidden="true">→</span></button>
         </form>
       </aside>
       <section class="results" aria-label="解析结果" aria-busy="false" id="results">
         <div class="notice" id="notice" role="status" hidden></div>
+        <div class="review-banner" id="tail-review" hidden>
+          <p id="tail-message"></p>
+          <div class="review-actions">
+            <button id="jump-tail" class="button secondary" type="button">查看原表尾行</button>
+            <button id="apply-tail" class="button secondary" type="button" hidden>删除建议尾行</button>
+            <button id="restore-tail" class="button secondary" type="button" hidden>恢复尾行</button>
+          </div>
+        </div>
         <div class="metrics" aria-label="结果摘要">
-          <div class="card metric"><span>明细行</span><strong id="row-count">—</strong></div>
+          <div class="card metric"><span>结果行</span><strong id="row-count">—</strong></div>
           <div class="card metric"><span>数据列</span><strong id="column-count">—</strong></div>
           <div class="card metric"><span>表头行</span><strong id="header-count">—</strong></div>
           <div class="card metric"><span>已删除尾行</span><strong id="tail-count">—</strong></div>
         </div>
         <section class="card preview" aria-labelledby="preview-title">
-          <div class="section-heading"><h2 id="preview-title">数据预览</h2><span id="sheet-tag" class="tag" hidden></span></div>
-          <div id="table-wrap" class="table-wrap" tabindex="0" aria-label="清理后的明细表" hidden><table><thead id="table-head"></thead><tbody id="table-body"></tbody></table></div>
-          <div id="empty" class="empty">载入示例或选择一个 .xlsx 文件开始。</div>
-          <div id="preview-note" class="preview-note" hidden></div>
+          <div class="section-heading preview-heading">
+            <div><h2 id="preview-title">数据对照</h2><span id="sheet-tag" class="tag" hidden></span></div>
+            <button id="export" class="button primary download" type="button" disabled>导出完整 .xlsx</button>
+          </div>
+          <p class="preview-note dirty-note" id="dirty-note" role="status" hidden>参数已修改。重新预览后可导出。</p>
+          <div class="comparison">
+            <section class="compare-pane" aria-labelledby="source-title">
+              <h3 id="source-title">原表</h3>
+              <div id="source-wrap" class="table-wrap" tabindex="0" aria-label="原始工作表" hidden><table><thead id="source-head"></thead><tbody id="source-body"></tbody></table></div>
+              <div id="source-empty" class="empty">选择工作簿后显示原表。</div>
+              <div id="source-note" class="preview-note" hidden></div>
+            </section>
+            <section class="compare-pane" aria-labelledby="clean-title">
+              <h3 id="clean-title">清理结果</h3>
+              <div id="table-wrap" class="table-wrap" tabindex="0" aria-label="清理后的明细表" hidden><table><thead id="table-head"></thead><tbody id="table-body"></tbody></table></div>
+              <div id="empty" class="empty">载入示例或选择一个 .xlsx 文件开始。</div>
+              <div id="preview-note" class="preview-note" hidden></div>
+            </section>
+          </div>
         </section>
         <section class="card report" aria-labelledby="report-title">
           <div class="section-heading"><h2 id="report-title">解析报告</h2><span id="report-mode" class="tag muted" hidden></span></div>

@@ -9,7 +9,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.merge import MergedCellRange
 from openpyxl.worksheet.worksheet import Worksheet
 
-from .detection import HeaderCandidate, TailDecision, detect_header, detect_tail, has_label
+from .detection import HeaderCandidate, TailCandidate, TailDecision, detect_header, detect_tail, has_label
 
 _MAX_GRID_CELLS = 1_000_000
 
@@ -54,14 +54,18 @@ def flatten(
 
 def _to_frame(rows: list[list[object]], report: FlattenReport) -> pd.DataFrame:
     depth = len(report.header_rows)
+    names = _table_columns(rows, depth)
+    return pd.DataFrame([row[:len(names)] for row in rows[depth:]], columns=names)
+
+
+def _table_columns(rows: list[list[object]], depth: int) -> list[str]:
     width = max(
         column
         for row in rows
         for column, value in enumerate(row, start=1)
         if value is not None
     )
-    names = _column_names(rows[:depth], width)
-    return pd.DataFrame([row[:width] for row in rows[depth:]], columns=names)
+    return _column_names(rows[:depth], width)
 
 
 def _read(
@@ -79,7 +83,8 @@ def _read(
     workbook = load_workbook(path, data_only=True, keep_links=False)
     try:
         sheet = _select_sheet(workbook.worksheets, sheet_name)
-        return _analyze_sheet(sheet, header_row, header_depth, drop_tail)
+        rows, report, _ = _analyze_sheet(sheet, header_row, header_depth, drop_tail)
+        return rows, report
     finally:
         workbook.close()
 
@@ -106,8 +111,9 @@ def _select_sheet(sheets: list[Worksheet], name: str | int) -> Worksheet:
 
 
 def _analyze_sheet(
-    sheet: Worksheet, header_row: int | None, header_depth: int | None, drop_tail: int | None
-) -> tuple[list[list[object]], FlattenReport]:
+    sheet: Worksheet, header_row: int | None, header_depth: int | None, drop_tail: int | None,
+    *, apply_detected_tail: bool = True,
+) -> tuple[list[list[object]], FlattenReport, tuple[TailCandidate, ...]]:
     last_row, last_column = sheet.max_row, sheet.max_column
     first_row = header_row or 1
     depth = header_depth or 1
@@ -145,8 +151,15 @@ def _analyze_sheet(
     while len(rows) > depth and all(value is None for value in rows[-1]):
         rows.pop()
     last_data_row = first_row + len(rows) - 1
+    tail_candidates = ()
     if drop_tail is None:
-        decisions, drop_tail = detect_tail(rows[depth:], header_end + 1, merges)
+        tail_candidates = detect_tail(rows[depth:], header_end + 1, merges)
+        action = "dropped" if apply_detected_tail else "suggested"
+        decisions = tuple(
+            TailDecision(candidate.row, action if candidate.eligible else "kept", candidate.reason)
+            for candidate in tail_candidates
+        )
+        drop_tail = sum(candidate.eligible for candidate in tail_candidates) if apply_detected_tail else 0
     elif drop_tail > len(rows) - depth:
         raise ValueError("drop_tail exceeds the number of data rows")
     else:
@@ -170,7 +183,7 @@ def _analyze_sheet(
         trimmed_blank_tail=(last_data_row + 1, last_row) if last_data_row < last_row else None,
         tail_decisions=decisions,
     )
-    return rows, report
+    return rows, report, tail_candidates
 
 
 def _restore_merges(

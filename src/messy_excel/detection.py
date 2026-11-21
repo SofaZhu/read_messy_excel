@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from bisect import bisect_right
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, time, timedelta
 from itertools import islice, takewhile
 
@@ -32,6 +32,14 @@ class TailDecision:
     row: int
     action: str
     reason: str
+
+
+@dataclass(frozen=True)
+class TailCandidate:
+    row: int
+    eligible: bool
+    reason: str
+    evidence: tuple[tuple[int, object], ...]
 
 
 def _kind(value: object) -> str:
@@ -195,7 +203,7 @@ def _score(
 
 def detect_tail(
     rows: list[list[object]], data_start: int, merges: list[MergedCellRange]
-) -> tuple[tuple[TailDecision, ...], int]:
+) -> tuple[TailCandidate, ...]:
     """Find a contiguous, corroborated suffix using Excel row coordinates."""
     suffix = []
     for index in range(len(rows) - 1, -1, -1):
@@ -204,32 +212,36 @@ def detect_tail(
             break
         suffix.append((index, label_column))
     if not suffix:
-        return (), 0
+        return ()
 
     # Derive the detail pattern from the nearest ordinary rows above the candidate suffix.
     detail = list(islice((
         row for row in reversed(rows[:suffix[-1][0]])
         if _total_label(row) is None and any(map(has_label, row))
     ), _DATA_SAMPLE_ROWS))
-    decisions = []
+    detail_columns = (
+        tuple(
+            column for column, values in enumerate(zip(*detail))
+            if all(_kind(value) in {"text", "date", "boolean"} for value in values)
+        ) if len(detail) >= 3 else ()
+    )
+    candidates = []
+    count = 0
     for index, label_column in suffix:
         row = rows[index]
         number = data_start + index
-        dropped = (
-            len(detail) >= 3
-            and any(_kind(value) == "number" for value in row)
-            and any(
-                column != label_column and not has_label(value)
-                and all(_kind(item[column]) in {"text", "date", "boolean"} for item in detail)
-                for column, value in enumerate(row)
-            )
+        label = ((label_column + 1, row[label_column]),)
+        numeric = next((column for column, value in enumerate(row) if _kind(value) == "number"), None)
+        missing = next(
+            (column for column in detail_columns if column != label_column and not has_label(row[column])), None,
         )
-        if not dropped:
-            decisions.append(TailDecision(number, "kept", "insufficient summary evidence"))
+        if numeric is None or missing is None:
+            candidates.append(TailCandidate(number, False, "insufficient summary evidence", label))
             break
-        decisions.append(TailDecision(number, "dropped", "summary label, numeric value, and missing detail field"))
+        evidence = (*label, (numeric + 1, row[numeric]), (missing + 1, row[missing]))
+        candidates.append(TailCandidate(number, True, "summary label, numeric value, and missing detail field", evidence))
+        count += 1
 
-    count = sum(decision.action == "dropped" for decision in decisions)
     cut = data_start + len(rows) - count
     blocking_reason = None
     if count and any(area.min_row < cut <= area.max_row for area in merges):
@@ -246,10 +258,8 @@ def detect_tail(
                     blocking_reason = "summary label was filled from a merged range"
                     break
     if blocking_reason is not None:
-        decisions = [
-            TailDecision(item.row, "kept", blocking_reason)
-            if item.action == "dropped" else item
-            for item in decisions
+        candidates = [
+            replace(item, eligible=False, reason=blocking_reason) if item.eligible else item
+            for item in candidates
         ]
-        count = 0
-    return tuple(reversed(decisions)), count
+    return tuple(reversed(candidates))
